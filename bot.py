@@ -27,16 +27,33 @@ def create_tables():
     conn.commit()
     conn.close()
 
-# Function to get the selected database ID and Notion secret from the database
-def get_selected_db_and_secret(user_id):
+# Helper function to store the pair of message_id and row_id in the local database
+def store_message_row_pair(message_id, row_id):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    cursor.execute("SELECT database_id, notion_secret FROM users WHERE user_id=?", (user_id,))
+    cursor.execute("INSERT INTO messages (message_id, row_id) VALUES (?, ?)", (message_id, row_id))
+    conn.commit()
+    conn.close()
+
+# Helper function to get the selected database ID from the database
+def get_selected_database_id(chat_id):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT database_id FROM users WHERE user_id=?", (chat_id,))
     result = cursor.fetchone()
     conn.close()
-    return result
+    return result[0] if result else None
 
-# Function to add an entry as a block inside the selected Notion page
+# Helper function to get the Notion secret from the database
+def get_notion_secret(chat_id):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT notion_secret FROM users WHERE user_id=?", (chat_id,))
+    result = cursor.fetchone()
+    conn.close()
+    return result[0] if result else None
+
+# Function to add an entry as a block inside the selected Notion page or a new page
 def add_entry_to_notion_db(entry_text, parent_row_id=None, message_id=None, chat_id=None):
     notion_secret = get_notion_secret(chat_id)
 
@@ -89,18 +106,11 @@ def add_entry_to_notion_db(entry_text, parent_row_id=None, message_id=None, chat
         print(e)
         return False
 
-# Helper function to store the pair of message_id and row_id in the local database
-def store_message_row_pair(message_id, row_id):
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO messages (message_id, row_id) VALUES (?, ?)", (message_id, row_id))
-    conn.commit()
-    conn.close()
-
 # Telegram /start command handler
 def start(update: Update, context: CallbackContext):
-    update.message.reply_text("Welcome to the Notion Bot!\nUse /add to add an entry to the selected Notion database.")
-    update.message.reply_text("Use /setdb to set the Notion database ID and secret.")
+    update.message.reply_text("Welcome to the Notion Bot!\nUse /add or not a command to add an entry to the selected Notion database.")
+    update.message.reply_text("Use /setsecret to set the Notion secret."))
+    update.message.reply_text("Use /setdb to set the Notion database ID.")
 
 # Telegram /add command handler
 def add_entry(update: Update, context: CallbackContext):
@@ -109,6 +119,7 @@ def add_entry(update: Update, context: CallbackContext):
     message_id = update.message.message_id  # Get the message_id
     chat_id = update.message.chat_id  # Get the chat_id
 
+    reply_text = "Your message has been added to the Notion database."
     if update.message.reply_to_message:
         # Check if it's a reply to a message, and if so, get the parent_row_id from the local database
         parent_message_id = update.message.reply_to_message.message_id
@@ -121,11 +132,11 @@ def add_entry(update: Update, context: CallbackContext):
 
         if result:
             parent_row_id = result[0]
+        reply_text = "Your message has been added as the block in the page." 
 
-    if add_entry_to_notion_db(entry_text, parent_row_id, message_id, chat_id):
-        update.message.reply_text("Your message has been added to the Notion database.")
-    else:
-        update.message.reply_text("Failed to add your message to the Notion database. Please try again.")
+    if not add_entry_to_notion_db(entry_text, parent_row_id, message_id, chat_id):
+        reply_text("Failed to add your message to the Notion database. Probably, Notion API is down. Please try again later.")
+    update.message.reply_text(reply_text)
 
 # Telegram /setdb command handler
 def set_database(update: Update, context: CallbackContext):
@@ -145,24 +156,6 @@ def set_database(update: Update, context: CallbackContext):
     conn.close()
 
     update.message.reply_text(f"You have selected the Notion database with ID: {database_id} and associated Notion secret.")
-
-# Helper function to get the selected database ID from the database
-def get_selected_database_id(chat_id):
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute("SELECT database_id FROM users WHERE user_id=?", (chat_id,))
-    result = cursor.fetchone()
-    conn.close()
-    return result[0] if result else None
-
-# Helper function to get the Notion secret from the database
-def get_notion_secret(chat_id):
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute("SELECT notion_secret FROM users WHERE user_id=?", (chat_id,))
-    result = cursor.fetchone()
-    conn.close()
-    return result[0] if result else None
 
 # Telegram /setsecret command handler
 def set_secret(update: Update, context: CallbackContext):
