@@ -109,7 +109,7 @@ def add_entry_to_notion_db(entry_text, parent_row_id=None, message_id=None, chat
 # Telegram /start command handler
 def start(update: Update, context: CallbackContext):
     update.message.reply_text("Welcome to the Notion Bot!\nUse /add or not a command to add an entry to the selected Notion database.")
-    update.message.reply_text("Use /setsecret to set the Notion secret."))
+    update.message.reply_text("Use /setsecret to set the Notion secret.")
     update.message.reply_text("Use /setdb to set the Notion database ID.")
 
 # Telegram /add command handler
