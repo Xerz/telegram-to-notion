@@ -136,10 +136,11 @@ def set_database(update: Update, context: CallbackContext):
     database_id = context.args[0]
     chat_id = update.message.chat_id  # Get the chat_id
 
+    notion_secret = get_notion_secret(chat_id=chat_id)
     # Store the selected database ID and Notion secret in the SQLite database
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    cursor.execute("INSERT OR REPLACE INTO users (user_id, database_id) VALUES (?, ?)", (chat_id, database_id))
+    cursor.execute("INSERT OR REPLACE INTO users (user_id, database_id, notion_secret) VALUES (?, ?, ?)", (chat_id, database_id, notion_secret))
     conn.commit()
     conn.close()
 
@@ -172,10 +173,11 @@ def set_secret(update: Update, context: CallbackContext):
     notion_secret = context.args[0]
     chat_id = update.message.chat_id  # Get the chat_id
 
+    database_id = get_selected_database_id(chat_id=chat_id)
     # Store the Notion secret in the SQLite database
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    cursor.execute("INSERT OR REPLACE INTO users (user_id, notion_secret) VALUES (?, ?)", (chat_id, notion_secret))
+    cursor.execute("INSERT OR REPLACE INTO users (user_id, database_id, notion_secret) VALUES (?, ?, ?)", (chat_id, database_id, notion_secret))
     conn.commit()
     conn.close()
 
